@@ -34,19 +34,15 @@
                         </h3>
                         <ol>
                             <li :for="notes as index => note">
-                                {{note}} <a href="#" @click="delete(index)">Delete</a>
+                                {{note}} <a href="#" @click="deleteNote(index)">Delete</a>
                             </li>
                         </ol>
 
                         <div class="new-note">
                             <input type="text" :value="newnote" placeholder="New note">
-                            <input type="text" :value="newnote" placeholder="New note">
-                            <button>
+                            <a @click="addNote()">
                                 Add note
-                            </button>
-                            <p>
-                                {{newnote}}
-                            </p>
+                            </a>
                         </div>
                     </section>
                 </div>
