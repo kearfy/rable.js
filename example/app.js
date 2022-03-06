@@ -1,4 +1,4 @@
-import { Rable } from '../rable.mjs';
+import { Rable } from '../rable.js';
 
 // BUTTON COUNTER EXAMPLE.
 
