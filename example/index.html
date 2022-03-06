@@ -15,7 +15,7 @@
         <div id="app">
             <header>
                 <h1>
-                    Rable.js examples
+                    Rable.js showcase
                 </h1>
             </header>
 
@@ -26,17 +26,23 @@
                             I've been clicked {{counter}} times.
                         </button>
                     </section>
+
+                    <section id="cps">
+                        <div class="counter noselect" @click="clickHandler()">
+                            {{buttonContent}}
+                        </div>
+                    </section>
                 </div>
                 <div class="row">
                     <section id="notes">
                         <h3>
                             Notes
                         </h3>
-                        <ol>
+                        <ul>
                             <li :for="notes as index => note">
                                 {{note}} <a href="#" @click="deleteNote(index)">Delete</a>
                             </li>
-                        </ol>
+                        </ul>
 
                         <div class="new-note">
                             <input type="text" :value="newnote" placeholder="New note">
