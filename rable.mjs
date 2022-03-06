@@ -189,7 +189,7 @@ function processElementAttributes(el, eventTransporter) {
                             }));
                             break;
                         case 'value':
-                            if (node.nodeName.toLowerCase() == 'input') {
+                            if (node.nodeName.toLowerCase() == 'input' || node.nodeName.toLowerCase() == 'textarea') {
                                 const data = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
                                 eventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                     detail: {
@@ -200,6 +200,24 @@ function processElementAttributes(el, eventTransporter) {
 
                                 node.addEventListener('input', e => {
                                     data[attribute.value] = node.value;
+                                });
+                            } else if (node.isContentEditable) {
+                                //When updating the innerText property, you lose focus on the element. Therefor, when content of the element is updated itself it should not be updated.
+                                var updateData = true;
+                                const data = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
+                                eventTransporter.dispatchEvent(new CustomEvent('registerListener', {
+                                    detail: {
+                                        type: 'data:updated',
+                                        listener: async () => {
+                                            if (updateData) node.innerText = data[attribute.value];
+                                            if (!updateData) updateData = true;
+                                        }
+                                    }
+                                }));
+
+                                node.addEventListener('input', e => {
+                                    updateData = false;
+                                    data[attribute.value] = node.innerText;
                                 });
                             }
                             break;
