@@ -194,3 +194,7 @@ section#cps .counter:active {
     transition: transform .1s ease;
     transform: scale(0.95);
 }
+
+section#ifelseifelse div {
+    display: flex;
+}

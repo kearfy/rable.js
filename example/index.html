@@ -51,6 +51,29 @@
                             </a>
                         </div>
                     </section>
+                    <section id="ifelseifelse">
+                        <h3>
+                            If, Else-If, Else
+                        </h3>
+                        <div>
+                            <b>{{toggleCount + 1}}</b>: &nbsp;
+                            <p :if="toggleCount == 0">One</p>
+                            <p :elseif="toggleCount == 1">Two</p>
+                            <p :else>Three</p>
+                        </div>
+                        <div>
+                            <b>{{togglePlanet + 1}}</b>: &nbsp;
+                            <p :if="togglePlanet == 0">Earth</p>
+                            <p :elseif="togglePlanet == 1">Moon</p>
+                            <p :else>Mars</p>
+                        </div>
+
+                        <br>
+
+                        <button @click="clickHandler()">
+                            Toggle
+                        </button>
+                    </section>
                 </div>
             </div>
         </div>

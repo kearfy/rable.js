@@ -68,3 +68,23 @@ const cps = new Rable({
         }
     }
 }).mount('#cps');
+
+const ifelseifelse = new Rable({
+    data: {
+        toggleCount: 1,
+        togglePlanet: 2,
+        clickHandler() {
+            if (this.toggleCount == 2) {
+                this.toggleCount = 0;
+            } else {
+                this.toggleCount++;
+            }
+
+            if (this.togglePlanet == 2) {
+                this.togglePlanet = 0;
+            } else {
+                this.togglePlanet++;
+            }
+        }
+    }
+}).mount('#ifelseifelse');
