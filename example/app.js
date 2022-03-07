@@ -88,3 +88,13 @@ const ifelseifelse = new Rable({
         }
     }
 }).mount('#ifelseifelse');
+
+const attrBind = new Rable({
+    data: {
+        image: 'https://picsum.photos/600/400',
+        async clickHandler() {
+            const res = await fetch('https://picsum.photos/600/400');
+            this.image = res.url;
+        }
+    }
+}).mount('#attr-bind');

@@ -198,3 +198,15 @@ section#cps .counter:active {
 section#ifelseifelse div {
     display: flex;
 }
+
+section#attr-bind img {
+    width: 100%;
+    border-radius: 10px;
+}
+
+section#attr-bind .button-container {
+    margin: 30px 0px 10px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
