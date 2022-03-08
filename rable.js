@@ -69,6 +69,7 @@ class Rable {
 function processTextNodes(el, eventTransporter) {
     let nodes = el.childNodes;
     nodes.forEach(node => {
+        if (node.getAttribute('norender') !== null || node.getAttribute('no-render') !== null) return;
         if (!node.parentNode.doNotProcessTextNodes) {
             if (node.nodeName == '#text') {
                 node.originalData = node.data;
@@ -150,6 +151,7 @@ function processElementAttributes(el, eventTransporter) {
 
     let nodes = el.childNodes;
     nodes.forEach(node => {
+        if (node.getAttribute('norender') !== null || node.getAttribute('no-render') !== null) return;
         if (node.childNodes.length > 0) processElementAttributes(node, eventTransporter);
         if (node.nodeName != '#text') {
             [...node.attributes].forEach(async attribute => {
