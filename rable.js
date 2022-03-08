@@ -69,7 +69,6 @@ class Rable {
 function processTextNodes(el, eventTransporter) {
     let nodes = el.childNodes;
     nodes.forEach(node => {
-        if (node.getAttribute('norender') !== null || node.getAttribute('no-render') !== null) return;
         if (!node.parentNode.doNotProcessTextNodes) {
             if (node.nodeName == '#text') {
                 node.originalData = node.data;
@@ -98,6 +97,7 @@ function processTextNodes(el, eventTransporter) {
                     }));
                 });
             } else if (node.childNodes.length > 0) {
+                if (node.getAttribute('rable:norender') !== null || node.getAttribute('rbl:norender') !== null || node.getAttribute(':norender') !== null || node.getAttribute('rable:no-render') !== null || node.getAttribute('rbl:no-render') !== null || node.getAttribute(':no-render') !== null) return;
                 processTextNodes(node, eventTransporter);
             }
         }
@@ -151,7 +151,7 @@ function processElementAttributes(el, eventTransporter) {
 
     let nodes = el.childNodes;
     nodes.forEach(node => {
-        if (node.getAttribute('norender') !== null || node.getAttribute('no-render') !== null) return;
+        if (node.nodeName != '#text' && (node.getAttribute('rable:norender') !== null || node.getAttribute('rbl:norender') !== null || node.getAttribute(':norender') !== null || node.getAttribute('rable:no-render') !== null || node.getAttribute('rbl:no-render') !== null || node.getAttribute(':no-render') !== null)) return;
         if (node.childNodes.length > 0) processElementAttributes(node, eventTransporter);
         if (node.nodeName != '#text') {
             [...node.attributes].forEach(async attribute => {
