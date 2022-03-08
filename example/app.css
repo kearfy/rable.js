@@ -210,3 +210,14 @@ section#attr-bind .button-container {
     display: flex;
     justify-content: center;
 }
+
+section#norender {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+section#norender p {
+    margin: 5px 0px;
+}

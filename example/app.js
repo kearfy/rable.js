@@ -98,3 +98,9 @@ const attrBind = new Rable({
         }
     }
 }).mount('#attr-bind');
+
+const norender = new Rable({
+    data: {
+        text: "I will be rendered."
+    }
+}).mount('#norender');
