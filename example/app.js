@@ -1,5 +1,9 @@
 import { Rable } from '../rable.js';
 
+// GITHUB LINK
+
+const gitlink = new Rable().mount('#repo-link');
+
 // BUTTON COUNTER EXAMPLE.
 
 const buttonCounter = new Rable({
