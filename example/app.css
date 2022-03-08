@@ -51,6 +51,7 @@ header h1 {
     border-bottom-left-radius: 10px;
     border-bottom-right-radius: 10px;
     background-color: #000;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
 }
 
 .repo-link {
@@ -93,6 +94,7 @@ section {
     background-color: white;
     border-radius: 15px;
     margin-bottom: 5vh;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
 }
 
 section h3 {
@@ -114,6 +116,7 @@ button {
     cursor: pointer;
     display: inline;
     position: relative;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
 }
 
 button:hover:not(:active)::after {
@@ -207,6 +210,7 @@ section#cps .counter {
     align-items: center;
     font-size: 23px;
     font-weight: 500;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
 }
 
 section#cps .counter:hover {
@@ -226,6 +230,7 @@ section#ifelseifelse div {
 section#attr-bind img {
     width: 100%;
     border-radius: 10px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
 }
 
 section#attr-bind .button-container {
