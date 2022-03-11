@@ -54,7 +54,14 @@
                             Notes
                         </h3>
                         <ul>
+                            <b>Normal list</b>
                             <li :for="notes as index => note">
+                                {{note}} <a href="#" @click="deleteNote(index)">Delete</a>
+                            </li>
+
+                            <br>
+                            <b>Reversed list</b>
+                            <li :for:reverse="notes as index => note">
                                 {{note}} <a href="#" @click="deleteNote(index)">Delete</a>
                             </li>
                         </ul>
