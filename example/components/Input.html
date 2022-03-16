@@ -1,0 +1,103 @@
+<data>
+    {
+        "type": "text",
+        "name": null,
+        "placeholder": "Field",
+        "value": "",
+        "errors": []
+    }
+</data>
+
+<component>
+    <div class="input-field" :class:red-border="errors.length < 0">
+        <input :bind:type="type" :bind:name="name" :value="value" @input="event-input" placeholder=" ">
+        <span>
+            {{ placeholder }}
+        </span>
+        <ul class="error-list">
+            <li :for="error in errors">
+                {{ error }}
+            </li>
+        </ul>
+    </div>
+</component>
+
+<style>
+    .input-field {
+        width: 100%;
+        margin-top: 15px;
+        margin-bottom: 15px;
+        position: relative;
+    }
+
+    .input-field span {
+        position: absolute;
+        top: 13px;
+        left: 20px;
+        padding: 0px;
+        background-color: white;
+        pointer-events: none;
+        transition: top .2s ease, left .1s ease, padding .2s ease, font-size .2s ease, color .2s ease;
+        color: #666;
+    }
+
+    .input-field input {
+        width: calc(100% - 42px);
+        padding: 15px 25px;
+        border: none;
+        outline: none;
+        background-color: transparent;
+
+        border: 1px solid #888;
+        border-radius: 5px;
+        transition: width .1s ease, padding .1s ease;
+    }
+
+    .input-field input:not(:placeholder-shown) {
+        border: 1px solid var(--c-blue-light);
+    }
+
+    .input-field input:focus {
+        border: 2px solid var(--c-blue-dark);
+        width: calc(100% - 44px);
+        padding: 14px 25px;
+    }
+
+    .input-field input:focus + span,
+    .input-field input:not(:placeholder-shown) + span {
+        top: -9px;
+        font-size: 14px;
+        padding: 0px 5px;
+        left: 10px;
+        transition: top .2s ease, left .3s ease, padding .2s ease, font-size .2s ease, color .1s ease;
+        color: var(--c-blue-light);
+    }
+
+    .input-field input:focus + span {
+        color: var(--c-blue-dark);
+    }
+
+    .input-field.red-border input {
+        border: 2px solid red !important;
+        color: red !important;
+        width: calc(100% - 44px);
+        padding: 14px 25px;
+    }
+
+    .input-field.red-border span {
+        color: red !important;
+    }
+
+    .input-field ul {
+        width: calc(100% - 60px);
+        padding: 7px 20px 0px;
+    }
+
+    .input-field:not(.red-border) ul.error-list {
+        display: none;
+    }
+
+    .input-field.red-border ul li {
+        color: red !important;
+    }
+</style>

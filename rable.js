@@ -2,6 +2,7 @@ class Rable {
     #root = null;
     #ready = false;
     #listeners = {};
+    #components = {};
     data = {};
     functions = {};
 
@@ -34,7 +35,6 @@ class Rable {
         this.eventTransporter.addEventListener('triggerListeners', e => this.triggerListeners(e.detail.listeners));
         this.eventTransporter.addEventListener('retrieveData', e => e.detail.resolve(this.data));
         this.eventTransporter.addEventListener('retrieveScopeData', e => e.detail.resolve(this.data));
-
         this.eventTransporter.addEventListener('registerListener', e => {
             if (!this.#listeners[e.detail.type]) this.#listeners[e.detail.type] = [];
             this.#listeners[e.detail.type].push(e.detail.listener);
@@ -51,11 +51,19 @@ class Rable {
         }
     }
 
+    async importComponent(name, path, raw = null) {
+        name = name.toLowerCase();
+        if (this.#components[name]) return false;
+        if (!raw) raw = await (await fetch(path)).text();
+        this.#components[name] = raw;
+        return true;
+    }
+
     mount(query) {
         let queried = document.querySelector(query);
         if (queried) {
             this.#root = queried;
-            processElementAttributes(this.#root, this.eventTransporter);
+            processElementAttributes(this.#root, this.eventTransporter, this.#components);
             processTextNodes(this.#root, this.eventTransporter);
             this.#ready = true;
             this.triggerListeners('data:updated');
@@ -79,7 +87,7 @@ function processTextNodes(el, eventTransporter) {
                             type: 'data:updated',
                             listener: async () => {
                                 const data = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
-                                const scopeData = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));
+                                const scopeData = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));                                
                                 node.data = node.originalData.replaceAll(/{{(.*?)}}/g, (match, target) => {
                                     let keys = Object.keys(data);
                                     keys.push('return ' + target);
@@ -104,7 +112,7 @@ function processTextNodes(el, eventTransporter) {
     });
 }
 
-function processElementAttributes(el, eventTransporter) {
+function processElementAttributes(el, eventTransporter, components) {
     const logic_if = [];
     var latestif = 0;
 
@@ -152,8 +160,66 @@ function processElementAttributes(el, eventTransporter) {
     let nodes = el.childNodes;
     nodes.forEach(node => {
         if (node.nodeName != '#text' && (node.getAttribute('rable:norender') !== null || node.getAttribute('rbl:norender') !== null || node.getAttribute(':norender') !== null || node.getAttribute('rable:no-render') !== null || node.getAttribute('rbl:no-render') !== null || node.getAttribute(':no-render') !== null)) return;
-        if (node.childNodes.length > 0) processElementAttributes(node, eventTransporter);
         if (node.nodeName != '#text') {
+            var component = null;
+            if (Object.keys(components).includes(node.nodeName.toLowerCase())) {
+                const validator = {
+                    get: (target, key) => {
+                        if (typeof target[key] === 'object' && target[key] !== null) {
+                            return new Proxy(target[key], validator)
+                        } else {
+                            return target[key];
+                        }
+                    },
+                    set: (obj, prop, value) => {
+                        if (typeof value == 'function') value = value.bind(this.data);
+                        obj[prop] = value;
+                        eventTransporter.dispatchEvent(new CustomEvent('triggerListeners', { detail: { listeners: 'data:updated' } } ));
+                        return true;
+                    }
+                }
+                
+                component = {
+                    parsed: document.createElement('parsed'),
+                    eventTransporter: new EventTarget,
+                    listeners: {},
+                    events: {},
+                    data: {}
+                };
+
+                component.parsed.innerHTML = components[node.nodeName.toLowerCase()];
+                component.parsed.querySelector('style').setAttribute('scoped', '');
+
+                component.data = new Proxy({}, validator);
+                if (parsed.querySelector('data')) {
+                    try {
+                        let data = JSON.parse(parsed.querySelector('data').innerText);
+                        Object.keys(data).forEach(key => component.data[key] = data[key]);
+                    } catch(e) {
+                        console.error("Failed to parse data from component: ", e);
+                    }
+                }
+                
+                component.eventTransporter.addEventListener('retrieveData', e => e.detail.resolve(component.data));                        
+                component.eventTransporter.addEventListener('retrieveScopeData', e => e.detail.resolve(component.data));
+                component.eventTransporter.addEventListener('triggerListeners', e => {
+                    if (component.listeners[e.detail.listeners]) {
+                        component.listeners[e.detail.listeners].forEach(listener => listener());
+                        return true;
+                    } else {
+                        return false;
+                    }
+                });
+
+                component.eventTransporter.addEventListener('registerListener', e => {
+                    if (!component.listeners[e.detail.type]) component.listeners[e.detail.type] = [];
+                    component.listeners[e.detail.type].push(e.detail.listener);
+                });
+
+                node.parentNode.replaceChild(node, component.parsed.querySelector('component').children[0]);
+            }
+
+            if (node.childNodes.length > 0) processElementAttributes(node, eventTransporter, components);
             [...node.attributes].forEach(async attribute => {
                 var attrName = attribute.name;
                 if (attrName.slice(0, 1) == '@') attrName = ':on:' + attrName.slice(1);
@@ -241,7 +307,7 @@ function processElementAttributes(el, eventTransporter) {
                                                 temporaryEventTransporter.addEventListener('registerListener', e => e.detail.listener());                                     
                                                 temporaryEventTransporter.addEventListener('retrieveScopeData', e => e.detail.resolve(data));
 
-                                                processElementAttributes(replacementNode, temporaryEventTransporter);
+                                                processElementAttributes(replacementNode, temporaryEventTransporter, components);
                                                 processTextNodes(replacementNode, temporaryEventTransporter);
                                                 replacementNode.forIdentifier = forIdentifier;
 

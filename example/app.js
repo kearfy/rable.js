@@ -108,3 +108,10 @@ const norender = new Rable({
         text: "I will be rendered."
     }
 }).mount('#norender');
+
+const components = new Rable({
+
+});
+
+components.importComponent('input-field', '/example/components/Input.html');
+components.mount('#components');
