@@ -49,7 +49,10 @@
                     </section>
 
                     <section id="components">
-                        <input-field></input-field>
+                        <input-field &value &error $placeholder="Enter your name"></input-field>
+                        <button @click="greet()">
+                            Go!
+                        </button>
                     </section>
                 </div>
                 <div class="row">

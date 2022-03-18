@@ -78,16 +78,17 @@ function processTextNodes(el, eventTransporter) {
     let nodes = el.childNodes;
     nodes.forEach(node => {
         if (!node.parentNode.doNotProcessTextNodes) {
+            const activeEventTransporter = (node.eventTransporter ? node.eventTransporter : eventTransporter);
             if (node.nodeName == '#text') {
                 node.originalData = node.data;
                 let matches = [...node.data.matchAll(/{{(.*?)}}/g)];
                 if (matches.length > 0) matches.forEach(match => {
-                    eventTransporter.dispatchEvent(new CustomEvent('registerListener', {
+                    activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                         detail: {
                             type: 'data:updated',
                             listener: async () => {
-                                const data = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
-                                const scopeData = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));                                
+                                const data = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
+                                const scopeData = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));                                
                                 node.data = node.originalData.replaceAll(/{{(.*?)}}/g, (match, target) => {
                                     let keys = Object.keys(data);
                                     keys.push('return ' + target);
@@ -106,7 +107,7 @@ function processTextNodes(el, eventTransporter) {
                 });
             } else if (node.childNodes.length > 0) {
                 if (node.getAttribute('rable:norender') !== null || node.getAttribute('rbl:norender') !== null || node.getAttribute(':norender') !== null || node.getAttribute('rable:no-render') !== null || node.getAttribute('rbl:no-render') !== null || node.getAttribute(':no-render') !== null) return;
-                processTextNodes(node, eventTransporter);
+                processTextNodes(node, activeEventTransporter);
             }
         }
     });
@@ -159,10 +160,21 @@ function processElementAttributes(el, eventTransporter, components) {
 
     let nodes = el.childNodes;
     nodes.forEach(node => {
+        const originalNode = node.cloneNode(true);
         if (node.nodeName != '#text' && (node.getAttribute('rable:norender') !== null || node.getAttribute('rbl:norender') !== null || node.getAttribute(':norender') !== null || node.getAttribute('rable:no-render') !== null || node.getAttribute('rbl:no-render') !== null || node.getAttribute(':no-render') !== null)) return;
         if (node.nodeName != '#text') {
             var component = null;
             if (Object.keys(components).includes(node.nodeName.toLowerCase())) {
+                component = {
+                    identifier: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                    parsed: document.createElement('parsed'),
+                    eventTransporter: new EventTarget,
+                    listeners: {},
+                    events: {},
+                    data: {}
+                };
+
+                const originalEventTransporter = eventTransporter;
                 const validator = {
                     get: (target, key) => {
                         if (typeof target[key] === 'object' && target[key] !== null) {
@@ -174,26 +186,17 @@ function processElementAttributes(el, eventTransporter, components) {
                     set: (obj, prop, value) => {
                         if (typeof value == 'function') value = value.bind(this.data);
                         obj[prop] = value;
-                        eventTransporter.dispatchEvent(new CustomEvent('triggerListeners', { detail: { listeners: 'data:updated' } } ));
+                        component.eventTransporter.dispatchEvent(new CustomEvent('triggerListeners', { detail: { listeners: 'data:updated' } } ));
                         return true;
                     }
                 }
-                
-                component = {
-                    parsed: document.createElement('parsed'),
-                    eventTransporter: new EventTarget,
-                    listeners: {},
-                    events: {},
-                    data: {}
-                };
 
                 component.parsed.innerHTML = components[node.nodeName.toLowerCase()];
-                component.parsed.querySelector('style').setAttribute('scoped', '');
 
                 component.data = new Proxy({}, validator);
-                if (parsed.querySelector('data')) {
+                if (component.parsed.querySelector('data')) {
                     try {
-                        let data = JSON.parse(parsed.querySelector('data').innerText);
+                        let data = JSON.parse(component.parsed.querySelector('data').innerText);
                         Object.keys(data).forEach(key => component.data[key] = data[key]);
                     } catch(e) {
                         console.error("Failed to parse data from component: ", e);
@@ -216,10 +219,110 @@ function processElementAttributes(el, eventTransporter, components) {
                     component.listeners[e.detail.type].push(e.detail.listener);
                 });
 
-                node.parentNode.replaceChild(node, component.parsed.querySelector('component').children[0]);
+                component.eventTransporter.addEventListener('triggerComponentEvent', async e => {
+                    if (component.events[e.detail.event]) {
+                        const data = await new Promise(resolve => originalEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
+                        const scopeData = await new Promise(resolve => originalEventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));
+                        component.events[e.detail.event].forEach(runnerCode => {
+                            const localData = {...data};
+                            localData.event = e.detail.eventPayload;
+                            localData.componentData = component.data;
+                            let keys = Object.keys(localData);
+                            keys.push(runnerCode);
+                            let runner = Function.apply(localData, keys);
+                            try {
+                                runner.apply(scopeData, Object.values(localData));
+                            } catch(e) {
+                                console.error(e);
+                            }
+                        })
+                    }
+                })
+
+                component.style = component.parsed.querySelector('style');
+                component.style.setAttribute('component-identifier', component.identifier);
+                component.style.innerText = component.style.innerText.replaceAll('\n', '').replaceAll(/(.*?)\{(.*?)}/gm, match => match.split('{')[0].split(',').map(target => 'body [component-identifier=' + component.identifier + '] ' + target.trim()).join(', ') + ' {' + match.split('{')[1]);
+                document.head.appendChild(component.style);
+
+                component.replacement = component.parsed.querySelector('component').children[0];
+                component.replacement.eventTransporter = component.eventTransporter;
+                node.parentNode.setAttribute('component-identifier', component.identifier);
+                node.parentNode.replaceChild(component.replacement, node);
+                node = component.replacement;
+
+                originalEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
+                    detail: {
+                        type: 'data:updated',
+                        listener: () => component.eventTransporter.dispatchEvent(new CustomEvent('triggerListeners', { detail: { listeners: 'data:updated' } } ))
+                    }
+                }));
+
+                [...originalNode.attributes].forEach(async attribute => {
+                    var attrName = attribute.name;
+                    if (attrName.slice(0, 1) == '@') attrName = ':on:' + attrName.slice(1);
+                    if (attrName.slice(0, 1) == '$') attrName = ':data:' + attrName.slice(1);
+                    if (attrName.slice(0, 1) == '&') attrName = ':bind:' + attrName.slice(1);
+                    if (attrName.slice(0, 1) == ':' || attrName.slice(0, 4) == 'rbl:' || attrName.slice(0, 6) == 'rable:') {
+                        let processedName = attrName.split(':').slice(1);
+                        if (processedName[0]) switch(processedName[0]) {
+                            case 'on':
+                            case 'event':
+                                if (processedName[1] && attribute.value !== '') {
+                                    if (!component.events[processedName[1]]) component.events[processedName[1]] = [];
+                                    component.events[processedName[1]].push(attribute.value);
+                                }
+        
+                                break;
+                            case 'bind':
+                                if (processedName[1] && attribute.value !== '') {
+                                    const originalData = await new Promise(resolve => originalEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
+                                    const origin = processedName[1];
+                                    const target = (attribute.value !== '' ? attribute.value : origin);
+                                    component.data[target] = originalData[origin];
+
+                                    originalEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
+                                        detail: {
+                                            type: 'data:updated',
+                                            listener: async () => {
+                                                const denyList = ['object', 'function']
+                                                if (denyList.includes(typeof originalData[origin]) || denyList.includes(typeof component.data[target])) {
+                                                    console.error('Cannot sync objects or functions.');
+                                                } else if (component.data[target] !== originalData[origin]) {
+                                                    console.log(origin, target, originalData[origin]);
+                                                    component.data[target] = originalData[origin];
+                                                } else {
+                                                    console.log(component.data[target], originalData[origin]);
+                                                }
+                                            }
+                                        }
+                                    }));
+
+                                    component.eventTransporter.dispatchEvent(new CustomEvent('registerListener', {
+                                        detail: {
+                                            type: 'data:updated',
+                                            listener: async () => {
+                                                const denyList = ['object', 'function']
+                                                if (denyList.includes(typeof originalData[origin]) || denyList.includes(typeof component.data[target])) {
+                                                    console.error('Cannot sync objects or functions.');
+                                                } else if (originalData[origin] !== component.data[target]) {
+                                                    originalData[origin] = component.data[target];
+                                                }
+                                            }
+                                        }
+                                    }));
+                                }
+
+                                break;
+                            case 'data':
+                                if (processedName[1] && attribute.value !== '') component.data[processedName[1]] = attribute.value;
+                                break;
+                        }
+                    }
+                });
             }
 
-            if (node.childNodes.length > 0) processElementAttributes(node, eventTransporter, components);
+            const activeEventTransporter = (node.eventTransporter ? node.eventTransporter : eventTransporter);
+            if (node.childNodes.length > 0) processElementAttributes(node, activeEventTransporter, components);
             [...node.attributes].forEach(async attribute => {
                 var attrName = attribute.name;
                 if (attrName.slice(0, 1) == '@') attrName = ':on:' + attrName.slice(1);
@@ -228,21 +331,32 @@ function processElementAttributes(el, eventTransporter, components) {
                     if (processedName[0]) switch(processedName[0]) {
                         case 'on':
                         case 'event':
-                            if (processedName[1] && attribute.value !== '') {
-                                const data = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
-                                const scopeData = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));
-                                node.addEventListener(processedName[1], e => {
-                                    const localData = {...data};
-                                    localData.event = e;
-                                    let keys = Object.keys(localData);
-                                    keys.push(attribute.value);
-                                    let runner = Function.apply(localData, keys);
-                                    try {
-                                        runner.apply(scopeData, Object.values(localData));
-                                    } catch(e) {
-                                        console.error(e);
-                                    }
-                                });
+                            if (processedName[1]) {
+                                if (attribute.value !== '') {
+                                    const data = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
+                                    const scopeData = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));
+                                    node.addEventListener(processedName[1], e => {
+                                        const localData = {...data};
+                                        localData.event = e;
+                                        let keys = Object.keys(localData);
+                                        keys.push(attribute.value);
+                                        let runner = Function.apply(localData, keys);
+                                        try {
+                                            runner.apply(scopeData, Object.values(localData));
+                                        } catch(e) {
+                                            console.error(e);
+                                        }
+                                    });
+                                } 
+                                
+                                if (processedName[2]) {
+                                    node.addEventListener(processedName[1], e => activeEventTransporter.dispatchEvent(new CustomEvent('triggerComponentEvent', {
+                                        detail: {
+                                            event: processedName[2],
+                                            eventPayload: e
+                                        }
+                                    })));
+                                }
 
                                 node.removeAttribute(attribute.name);
                             }
@@ -259,11 +373,11 @@ function processElementAttributes(el, eventTransporter, components) {
                             node.forMasterNode = true;
                             node.style.display = 'none';
                             
-                            eventTransporter.dispatchEvent(new CustomEvent('registerListener', {
+                            activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                 detail: {
                                     type: 'data:updated',
                                     listener: async () => {
-                                        const data = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
+                                        const data = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
                                         const asloop = (res => (res.length > 0 ? res[0].slice(1, 4) : null))([...attribute.value.matchAll(/^(.*)\sas\s(.*)\s\=\>\s(.*)$/g)]),
                                               inloop = (res => (res.length > 0 ? res[0].slice(1, 3) : null))([...attribute.value.matchAll(/^(.*)\sin\s(.*)$/g)]);
 
@@ -333,41 +447,61 @@ function processElementAttributes(el, eventTransporter, components) {
                             break;
                         case 'value':
                             if (typeof node.value == 'string') {
-                                const data = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
-                                eventTransporter.dispatchEvent(new CustomEvent('registerListener', {
-                                    detail: {
-                                        type: 'data:updated',
-                                        listener: async () => node.value = data[attribute.value]
-                                    }
-                                }));
-
-                                node.addEventListener('input', e => {
-                                    data[attribute.value] = node.value;
-                                });
-                            } else if (node.isContentEditable) {
-                                //When updating the innerText property, you lose focus on the element. Therefor, when content of the element is updated itself it should not be updated.
-                                var updateData = true;
-                                const data = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
-                                eventTransporter.dispatchEvent(new CustomEvent('registerListener', {
+                                const data = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
+                                node.value = data[attribute.value];
+                                activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                     detail: {
                                         type: 'data:updated',
                                         listener: async () => {
-                                            if (updateData) node.innerText = data[attribute.value];
-                                            if (!updateData) updateData = true;
+                                            const denyList = ['object', 'function']
+                                            if (denyList.includes(typeof node.value) || denyList.includes(typeof data[attribute.value])) {
+                                                console.error('Cannot sync objects or functions.');
+                                            } else if (node.value !== data[attribute.value]) {
+                                                node.value = data[attribute.value];
+                                            }
                                         }
                                     }
                                 }));
 
                                 node.addEventListener('input', e => {
-                                    updateData = false;
-                                    data[attribute.value] = node.innerText;
+                                    const denyList = ['object', 'function']
+                                    if (denyList.includes(typeof node.value) || denyList.includes(typeof data[attribute.value])) {
+                                        console.error('Cannot sync objects or functions.');
+                                    } else if (node.value !== data[attribute.value]) {
+                                        data[attribute.value] = node.value;
+                                    }
+                                });
+                            } else if (node.isContentEditable) {
+                                const data = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
+                                node.innerText = data[attribute.value];
+                                activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
+                                    detail: {
+                                        type: 'data:updated',
+                                        listener: async () => {
+                                            const denyList = ['object', 'function']
+                                            if (denyList.includes(typeof node.innerText) || denyList.includes(typeof data[attribute.value])) {
+                                                console.error('Cannot sync objects or functions.');
+                                            } else if (node.innerText !== data[attribute.value]) {
+                                                node.innerText = data[attribute.value];
+                                            }
+                                        }
+                                    }
+                                }));
+
+                                node.addEventListener('input', e => {
+                                    const denyList = ['object', 'function']
+                                    if (denyList.includes(typeof node.innerText) || denyList.includes(typeof data[attribute.value])) {
+                                        console.error('Cannot sync objects or functions.');
+                                    } else if (node.innerText !== data[attribute.value]) {
+                                        data[attribute.value] = node.innerText;
+                                    }
                                 });
                             }
                             break;
                         case 'checked':
                             if (typeof node.checked == 'boolean') {
-                                const data = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
-                                eventTransporter.dispatchEvent(new CustomEvent('registerListener', {
+                                const data = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
+                                activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                     detail: {
                                         type: 'data:updated',
                                         listener: async () => node.checked = data[attribute.value]
@@ -414,12 +548,12 @@ function processElementAttributes(el, eventTransporter, components) {
                                 console.error("No class defined!");
                             } else {
                                 const className = processedName[1];
-                                eventTransporter.dispatchEvent(new CustomEvent('registerListener', {
+                                activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                     detail: {
                                         type: 'data:updated',
                                         listener: async () => {
-                                            const data = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
-                                            const scopeData = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));
+                                            const data = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
+                                            const scopeData = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));
                                             let keys = Object.keys(data);
                                             keys.push('return ' + attribute.value);
                                             let runner = Function.apply({}, keys);
@@ -441,12 +575,12 @@ function processElementAttributes(el, eventTransporter, components) {
                             break;
                         case 'bind':
                             const attrName = processedName[1];
-                            eventTransporter.dispatchEvent(new CustomEvent('registerListener', {
+                            activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                 detail: {
                                     type: 'data:updated',
                                     listener: async () => {
-                                        const data = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
-                                        const scopeData = await new Promise(resolve => eventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));
+                                        const data = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
+                                        const scopeData = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));
                                         let keys = Object.keys(data);
                                         keys.push('return ' + attribute.value);
                                         let runner = Function.apply({}, keys);

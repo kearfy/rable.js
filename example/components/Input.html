@@ -4,21 +4,16 @@
         "name": null,
         "placeholder": "Field",
         "value": "",
-        "errors": []
+        "error": false
     }
 </data>
 
 <component>
-    <div class="input-field" :class:red-border="errors.length < 0">
-        <input :bind:type="type" :bind:name="name" :value="value" @input="event-input" placeholder=" ">
+    <div class="input-field" :class:red-border="error" testAttr>
+        <input :bind:type="type" :bind:name="name" :value="value" @input:event-input placeholder=" ">
         <span>
             {{ placeholder }}
         </span>
-        <ul class="error-list">
-            <li :for="error in errors">
-                {{ error }}
-            </li>
-        </ul>
     </div>
 </component>
 
@@ -54,11 +49,11 @@
     }
 
     .input-field input:not(:placeholder-shown) {
-        border: 1px solid var(--c-blue-light);
+        border: 1px solid #4492eb;
     }
 
     .input-field input:focus {
-        border: 2px solid var(--c-blue-dark);
+        border: 2px solid #0059c1;
         width: calc(100% - 44px);
         padding: 14px 25px;
     }
@@ -70,11 +65,11 @@
         padding: 0px 5px;
         left: 10px;
         transition: top .2s ease, left .3s ease, padding .2s ease, font-size .2s ease, color .1s ease;
-        color: var(--c-blue-light);
+        color: #4492eb;
     }
 
     .input-field input:focus + span {
-        color: var(--c-blue-dark);
+        color: #0059c1;
     }
 
     .input-field.red-border input {
@@ -85,19 +80,6 @@
     }
 
     .input-field.red-border span {
-        color: red !important;
-    }
-
-    .input-field ul {
-        width: calc(100% - 60px);
-        padding: 7px 20px 0px;
-    }
-
-    .input-field:not(.red-border) ul.error-list {
-        display: none;
-    }
-
-    .input-field.red-border ul li {
         color: red !important;
     }
 </style>

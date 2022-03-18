@@ -105,13 +105,21 @@ const attrBind = new Rable({
 
 const norender = new Rable({
     data: {
-        text: "I will be rendered."
+        text: "I will be rendered.",
     }
 }).mount('#norender');
 
 const components = new Rable({
-
+    data: {
+        value: "",
+        error: false,
+        greet() {
+            if (this.value == '') {
+                this.error = true;
+                console.log(this);
+            }
+        }
+    }
 });
-
-components.importComponent('input-field', '/example/components/Input.html');
+await components.importComponent('input-field', '/example/components/Input.html');
 components.mount('#components');
