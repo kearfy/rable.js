@@ -115,9 +115,16 @@ const components = new Rable({
         error: false,
         greet() {
             if (this.value == '') {
-                this.error = true;
                 console.log(this);
+            } else {
+                alert(this.value);
             }
+        },
+        typing() {
+            console.log(1, this);
+            console.log(this.value == '');
+            this.error = this.value == '';
+            console.log(2, this);
         }
     }
 });

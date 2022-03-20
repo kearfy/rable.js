@@ -21,7 +21,7 @@ class Rable {
             set: (obj, prop, value) => {
                 if (typeof value == 'function') value = value.bind(this.data);
                 obj[prop] = value;
-                eventTransporter.dispatchEvent(new CustomEvent('triggerListeners', { detail: { listeners: 'data:updated' } } ));
+                eventTransporter.dispatchEvent(new CustomEvent('triggerListeners', { detail: { listeners: 'data:updated', additionalInformation: prop } } ));
                 return true;
             }
         }
@@ -32,7 +32,7 @@ class Rable {
     }
 
     addEventListeners() {
-        this.eventTransporter.addEventListener('triggerListeners', e => this.triggerListeners(e.detail.listeners));
+        this.eventTransporter.addEventListener('triggerListeners', e => this.triggerListeners(e.detail.listeners, e.detail.additionalInformation));
         this.eventTransporter.addEventListener('retrieveData', e => e.detail.resolve(this.data));
         this.eventTransporter.addEventListener('retrieveScopeData', e => e.detail.resolve(this.data));
         this.eventTransporter.addEventListener('registerListener', e => {
@@ -41,10 +41,10 @@ class Rable {
         });
     }
 
-    triggerListeners(listener) {
+    triggerListeners(listener, additionalInformation) {
         if (!this.#ready) return false;
         if (this.#listeners[listener]) {
-            this.#listeners[listener].forEach(listener => listener());
+            this.#listeners[listener].forEach(listener => listener(additionalInformation));
             return true;
         } else {
             return false;
@@ -66,7 +66,7 @@ class Rable {
             processElementAttributes(this.#root, this.eventTransporter, this.#components);
             processTextNodes(this.#root, this.eventTransporter);
             this.#ready = true;
-            this.triggerListeners('data:updated');
+            this.triggerListeners('data:updated', false);
             return true;
         } else {
             return false;
@@ -166,7 +166,7 @@ function processElementAttributes(el, eventTransporter, components) {
             var component = null;
             if (Object.keys(components).includes(node.nodeName.toLowerCase())) {
                 component = {
-                    identifier: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                    identifier: 'component-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
                     parsed: document.createElement('parsed'),
                     eventTransporter: new EventTarget,
                     listeners: {},
@@ -186,7 +186,7 @@ function processElementAttributes(el, eventTransporter, components) {
                     set: (obj, prop, value) => {
                         if (typeof value == 'function') value = value.bind(this.data);
                         obj[prop] = value;
-                        component.eventTransporter.dispatchEvent(new CustomEvent('triggerListeners', { detail: { listeners: 'data:updated' } } ));
+                        component.eventTransporter.dispatchEvent(new CustomEvent('triggerListeners', { detail: { listeners: 'data:updated', additionalInformation: prop } } ));
                         return true;
                     }
                 }
@@ -207,7 +207,7 @@ function processElementAttributes(el, eventTransporter, components) {
                 component.eventTransporter.addEventListener('retrieveScopeData', e => e.detail.resolve(component.data));
                 component.eventTransporter.addEventListener('triggerListeners', e => {
                     if (component.listeners[e.detail.listeners]) {
-                        component.listeners[e.detail.listeners].forEach(listener => listener());
+                        component.listeners[e.detail.listeners].forEach(listener => listener(e.detail.additionalInformation));
                         return true;
                     } else {
                         return false;
@@ -250,12 +250,12 @@ function processElementAttributes(el, eventTransporter, components) {
                 node.parentNode.replaceChild(component.replacement, node);
                 node = component.replacement;
 
-                originalEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
-                    detail: {
-                        type: 'data:updated',
-                        listener: () => component.eventTransporter.dispatchEvent(new CustomEvent('triggerListeners', { detail: { listeners: 'data:updated' } } ))
-                    }
-                }));
+                // originalEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
+                //     detail: {
+                //         type: 'data:updated',
+                //         listener: additionalInformation => component.eventTransporter.dispatchEvent(new CustomEvent('triggerListeners', { detail: { listeners: 'data:updated', additionalInformation: additionalInformation } } ))
+                //     }
+                // }));
 
                 [...originalNode.attributes].forEach(async attribute => {
                     var attrName = attribute.name;
@@ -274,7 +274,7 @@ function processElementAttributes(el, eventTransporter, components) {
         
                                 break;
                             case 'bind':
-                                if (processedName[1] && attribute.value !== '') {
+                                if (processedName[1]) {
                                     const originalData = await new Promise(resolve => originalEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
                                     const origin = processedName[1];
                                     const target = (attribute.value !== '' ? attribute.value : origin);
@@ -283,15 +283,14 @@ function processElementAttributes(el, eventTransporter, components) {
                                     originalEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                         detail: {
                                             type: 'data:updated',
-                                            listener: async () => {
-                                                const denyList = ['object', 'function']
-                                                if (denyList.includes(typeof originalData[origin]) || denyList.includes(typeof component.data[target])) {
-                                                    console.error('Cannot sync objects or functions.');
-                                                } else if (component.data[target] !== originalData[origin]) {
-                                                    console.log(origin, target, originalData[origin]);
-                                                    component.data[target] = originalData[origin];
-                                                } else {
-                                                    console.log(component.data[target], originalData[origin]);
+                                            listener: async item => {
+                                                if (item == origin) {
+                                                    const denyList = ['object', 'function']
+                                                    if (denyList.includes(typeof originalData[origin]) || denyList.includes(typeof component.data[target])) {
+                                                        console.error('Cannot sync objects or functions.');
+                                                    } else if (component.data[target] !== originalData[origin]) {
+                                                        component.data[target] = originalData[origin];
+                                                    }
                                                 }
                                             }
                                         }
@@ -300,12 +299,14 @@ function processElementAttributes(el, eventTransporter, components) {
                                     component.eventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                         detail: {
                                             type: 'data:updated',
-                                            listener: async () => {
-                                                const denyList = ['object', 'function']
-                                                if (denyList.includes(typeof originalData[origin]) || denyList.includes(typeof component.data[target])) {
-                                                    console.error('Cannot sync objects or functions.');
-                                                } else if (originalData[origin] !== component.data[target]) {
-                                                    originalData[origin] = component.data[target];
+                                            listener: async item => {
+                                                if (item == target) {
+                                                    const denyList = ['object', 'function']
+                                                    if (denyList.includes(typeof originalData[origin]) || denyList.includes(typeof component.data[target])) {
+                                                        console.error('Cannot sync objects or functions.');
+                                                    } else if (originalData[origin] !== component.data[target]) {
+                                                        originalData[origin] = component.data[target];
+                                                    }
                                                 }
                                             }
                                         }
@@ -452,12 +453,14 @@ function processElementAttributes(el, eventTransporter, components) {
                                 activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                     detail: {
                                         type: 'data:updated',
-                                        listener: async () => {
-                                            const denyList = ['object', 'function']
-                                            if (denyList.includes(typeof node.value) || denyList.includes(typeof data[attribute.value])) {
-                                                console.error('Cannot sync objects or functions.');
-                                            } else if (node.value !== data[attribute.value]) {
-                                                node.value = data[attribute.value];
+                                        listener: async item => {
+                                            if (item == attribute.value) {
+                                                const denyList = ['object', 'function']
+                                                if (denyList.includes(typeof node.value) || denyList.includes(typeof data[attribute.value])) {
+                                                    console.error('Cannot sync objects or functions.');
+                                                } else if (node.value !== data[attribute.value]) {
+                                                    node.value = data[attribute.value];
+                                                }
                                             }
                                         }
                                     }
@@ -477,12 +480,14 @@ function processElementAttributes(el, eventTransporter, components) {
                                 activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                     detail: {
                                         type: 'data:updated',
-                                        listener: async () => {
-                                            const denyList = ['object', 'function']
-                                            if (denyList.includes(typeof node.innerText) || denyList.includes(typeof data[attribute.value])) {
-                                                console.error('Cannot sync objects or functions.');
-                                            } else if (node.innerText !== data[attribute.value]) {
-                                                node.innerText = data[attribute.value];
+                                        listener: async item => {
+                                            if (item == attribute.value) {
+                                                const denyList = ['object', 'function']
+                                                if (denyList.includes(typeof node.innerText) || denyList.includes(typeof data[attribute.value])) {
+                                                    console.error('Cannot sync objects or functions.');
+                                                } else if (node.innerText !== data[attribute.value]) {
+                                                    node.innerText = data[attribute.value];
+                                                }
                                             }
                                         }
                                     }
@@ -504,12 +509,16 @@ function processElementAttributes(el, eventTransporter, components) {
                                 activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                     detail: {
                                         type: 'data:updated',
-                                        listener: async () => node.checked = data[attribute.value]
+                                        listener: async () => {
+                                            if (item == attribute.value) {
+                                                if (node.checked !== data[attribute.value]) node.checked = data[attribute.value];
+                                            }
+                                        }
                                     }
                                 }));
 
                                 node.addEventListener('input', e => {
-                                    data[attribute.value] = node.checked;
+                                    if (data[attribute.value] !== node.checked) data[attribute.value] = node.checked;
                                 });
                             }
                             break;
