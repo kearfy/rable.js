@@ -74,6 +74,60 @@ class Rable {
     }
 }
 
+class Scheduler {
+    #order;
+    #validators;
+    #scheduled;
+    constructor(order) {
+        this.#order = order;
+        this.#validators = [];
+        this.#scheduled = {};
+    }
+
+    registerValidator(type, validator) {
+        if (this.#order.includes(type)) {
+            if (!this.#validators[type]) this.#validators[type] = [];
+            this.#validators[type].push(validator);
+        }
+    }
+
+    readyFor(type) {
+        if (!this.#order.includes(type)) return false;
+        for(var i = 0; i < this.#order.length; i++) {
+            const currentType = this.#order[i];
+            if (type == currentType) return true;
+            if (typeof this.#validators[currentType] == 'object') {
+                for(var j = 0; j < this.#validators[currentType].length; j++) {
+                    if (!this.#validators[currentType][j]()) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    schedule(type, runner) {
+        if (!this.#order.includes(type)) return false;
+        if (this.readyFor(type)) {
+            runner();
+        } else {
+            if (!this.#scheduled[type]) this.#scheduled[type] = [];
+            this.#scheduled[type].push(runner);
+        }
+    }
+
+    triggerTasks() {
+        Object.keys(this.#scheduled).forEach(type => {
+            if (this.readyFor(type)) {
+                this.#scheduled[type].forEach(runner => runner());
+                this.#scheduled[type] = [];
+            }
+        });
+    }
+}
+
 function processTextNodes(el, eventTransporter) {
     let nodes = el.childNodes;
     nodes.forEach(node => {
@@ -167,6 +221,7 @@ function processElementAttributes(el, eventTransporter, components) {
             if (Object.keys(components).includes(node.nodeName.toLowerCase())) {
                 component = {
                     identifier: 'component-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                    scheduler: new Scheduler(['dom-synced', 'bind', 'event']),
                     parsed: document.createElement('parsed'),
                     eventTransporter: new EventTarget,
                     listeners: {},
@@ -221,23 +276,28 @@ function processElementAttributes(el, eventTransporter, components) {
 
                 component.eventTransporter.addEventListener('triggerComponentEvent', async e => {
                     if (component.events[e.detail.event]) {
-                        const data = await new Promise(resolve => originalEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
-                        const scopeData = await new Promise(resolve => originalEventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));
-                        component.events[e.detail.event].forEach(runnerCode => {
-                            const localData = {...data};
-                            localData.event = e.detail.eventPayload;
-                            localData.componentData = component.data;
-                            let keys = Object.keys(localData);
-                            keys.push(runnerCode);
-                            let runner = Function.apply(localData, keys);
-                            try {
-                                runner.apply(scopeData, Object.values(localData));
-                            } catch(e) {
-                                console.error(e);
-                            }
-                        })
+                        component.scheduler.schedule('event', async () => {
+                            const data = await new Promise(resolve => originalEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
+                            const scopeData = await new Promise(resolve => originalEventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));
+                            component.events[e.detail.event].forEach(runnerCode => {
+                                const localData = {...data};
+                                localData.event = e.detail.eventPayload;
+                                localData.componentData = component.data;
+                                let keys = Object.keys(localData);
+                                keys.push(runnerCode);
+                                let runner = Function.apply(localData, keys);
+                                try {
+                                    runner.apply(scopeData, Object.values(localData));
+                                } catch(e) {
+                                    console.error(e);
+                                }
+                            });
+                        });
                     }
-                })
+                });
+
+                component.eventTransporter.addEventListener('registerSchedulerValidator', e => component.scheduler.registerValidator(e.detail.type, e.detail.validator));
+                component.eventTransporter.addEventListener('triggerScheduledTasks', e => component.scheduler.triggerTasks());
 
                 component.style = component.parsed.querySelector('style');
                 component.style.setAttribute('component-identifier', component.identifier);
@@ -279,6 +339,7 @@ function processElementAttributes(el, eventTransporter, components) {
                                     const origin = processedName[1];
                                     const target = (attribute.value !== '' ? attribute.value : origin);
                                     component.data[target] = originalData[origin];
+                                    component.scheduler.registerValidator('bind', () => component.data[target] == originalData[origin]);
 
                                     originalEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                         detail: {
@@ -290,6 +351,7 @@ function processElementAttributes(el, eventTransporter, components) {
                                                         console.error('Cannot sync objects or functions.');
                                                     } else if (component.data[target] !== originalData[origin]) {
                                                         component.data[target] = originalData[origin];
+                                                        component.scheduler.triggerTasks();
                                                     }
                                                 }
                                             }
@@ -306,6 +368,7 @@ function processElementAttributes(el, eventTransporter, components) {
                                                         console.error('Cannot sync objects or functions.');
                                                     } else if (originalData[origin] !== component.data[target]) {
                                                         originalData[origin] = component.data[target];
+                                                        component.scheduler.triggerTasks();
                                                     }
                                                 }
                                             }
@@ -450,6 +513,13 @@ function processElementAttributes(el, eventTransporter, components) {
                             if (typeof node.value == 'string') {
                                 const data = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
                                 node.value = data[attribute.value];
+                                activeEventTransporter.dispatchEvent(new CustomEvent('registerSchedulerValidator', {
+                                    detail: {
+                                        type: 'dom-synced',
+                                        validator: () => node.value == data[attribute.value]
+                                    }
+                                }));
+
                                 activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                     detail: {
                                         type: 'data:updated',
@@ -460,6 +530,7 @@ function processElementAttributes(el, eventTransporter, components) {
                                                     console.error('Cannot sync objects or functions.');
                                                 } else if (node.value !== data[attribute.value]) {
                                                     node.value = data[attribute.value];
+                                                    activeEventTransporter.dispatchEvent(new CustomEvent('triggerScheduledTasks'));
                                                 }
                                             }
                                         }
@@ -472,11 +543,19 @@ function processElementAttributes(el, eventTransporter, components) {
                                         console.error('Cannot sync objects or functions.');
                                     } else if (node.value !== data[attribute.value]) {
                                         data[attribute.value] = node.value;
+                                        activeEventTransporter.dispatchEvent(new CustomEvent('triggerScheduledTasks'));
                                     }
                                 });
                             } else if (node.isContentEditable) {
                                 const data = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
                                 node.innerText = data[attribute.value];
+                                activeEventTransporter.dispatchEvent(new CustomEvent('registerSchedulerValidator', {
+                                    detail: {
+                                        type: 'dom-synced',
+                                        validator: () => node.innerText == data[attribute.value]
+                                    }
+                                }));
+
                                 activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                     detail: {
                                         type: 'data:updated',
@@ -487,6 +566,7 @@ function processElementAttributes(el, eventTransporter, components) {
                                                     console.error('Cannot sync objects or functions.');
                                                 } else if (node.innerText !== data[attribute.value]) {
                                                     node.innerText = data[attribute.value];
+                                                    activeEventTransporter.dispatchEvent(new CustomEvent('triggerScheduledTasks'));
                                                 }
                                             }
                                         }
@@ -499,6 +579,7 @@ function processElementAttributes(el, eventTransporter, components) {
                                         console.error('Cannot sync objects or functions.');
                                     } else if (node.innerText !== data[attribute.value]) {
                                         data[attribute.value] = node.innerText;
+                                        activeEventTransporter.dispatchEvent(new CustomEvent('triggerScheduledTasks'));
                                     }
                                 });
                             }
