@@ -325,13 +325,6 @@ function processElementAttributes(el, eventTransporter, components) {
                 node.parentNode.replaceChild(component.replacement, node);
                 node = component.replacement;
 
-                // originalEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
-                //     detail: {
-                //         type: 'data:updated',
-                //         listener: additionalInformation => component.eventTransporter.dispatchEvent(new CustomEvent('triggerListeners', { detail: { listeners: 'data:updated', additionalInformation: additionalInformation } } ))
-                //     }
-                // }));
-
                 [...originalNode.attributes].forEach(async attribute => {
                     var attrName = attribute.name;
                     if (attrName.slice(0, 1) == '@') attrName = ':on:' + attrName.slice(1);
@@ -395,6 +388,36 @@ function processElementAttributes(el, eventTransporter, components) {
                             case 'data':
                                 if (processedName[1] && attribute.value !== '') component.data[processedName[1]] = attribute.value;
                                 break;
+                            case 'if':
+                                if (logic_if[latestif]) latestif++;
+                                logic_if[latestif] = [];
+                                logic_if[latestif].push({
+                                    node: node,
+                                    validator: attribute.value
+                                });
+                                break;
+                            case 'elseif':
+                            case 'else-if':
+                                if (!logic_if[latestif]) {
+                                    console.error("If statement should start with if block!");
+                                } else {
+                                    logic_if[latestif].push({
+                                        node: node,
+                                        validator: attribute.value
+                                    });
+                                }
+                                break;
+                            case 'else':
+                                if (!logic_if[latestif]) {
+                                    console.error("If statement should start with if block!");
+                                } else {
+                                    logic_if[latestif].push({
+                                        node: node
+                                    });
+
+                                    latestif++;
+                                }
+                                break;  
                         }
                     }
                 });

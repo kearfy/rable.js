@@ -50,7 +50,7 @@
 
                     <section id="components">
                         <input-field @keydown="greet(event)" &name="value" &error $placeholder="Enter your name" @event-input="typing()"></input-field>
-                        <input-field @keydown="greet(event)" &age="value" $type="number" $placeholder="Enter your age"></input-field>
+                        <input-field @keydown="greet(event)" &age="value" $type="number" $placeholder="Enter your age" :if="name != ''"></input-field>
                         <button @click="greet()">
                             Go!
                         </button>
