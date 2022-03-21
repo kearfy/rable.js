@@ -49,12 +49,13 @@
                     </section>
 
                     <section id="components">
-                        <input-field &value &error $placeholder="Enter your name" @event-input="typing()"></input-field>
+                        <input-field @keydown="greet(event)" &name="value" &error $placeholder="Enter your name" @event-input="typing()"></input-field>
+                        <input-field @keydown="greet(event)" &age="value" $type="number" $placeholder="Enter your age"></input-field>
                         <button @click="greet()">
                             Go!
                         </button>
-                        <span>
-                            {{value}}
+                        <span style="margin-left: 15px;">
+                            {{ message }}
                         </span>
                     </section>
                 </div>

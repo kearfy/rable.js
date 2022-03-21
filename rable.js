@@ -221,6 +221,7 @@ function processElementAttributes(el, eventTransporter, components) {
             if (Object.keys(components).includes(node.nodeName.toLowerCase())) {
                 component = {
                     identifier: 'component-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                    type: node.nodeName.toLowerCase(),
                     scheduler: new Scheduler(['dom-synced', 'bind', 'event']),
                     parsed: document.createElement('parsed'),
                     eventTransporter: new EventTarget,
@@ -299,14 +300,28 @@ function processElementAttributes(el, eventTransporter, components) {
                 component.eventTransporter.addEventListener('registerSchedulerValidator', e => component.scheduler.registerValidator(e.detail.type, e.detail.validator));
                 component.eventTransporter.addEventListener('triggerScheduledTasks', e => component.scheduler.triggerTasks());
 
-                component.style = component.parsed.querySelector('style');
-                component.style.setAttribute('component-identifier', component.identifier);
-                component.style.innerText = component.style.innerText.replaceAll('\n', '').replaceAll(/(.*?)\{(.*?)}/gm, match => match.split('{')[0].split(',').map(target => 'body [component-identifier=' + component.identifier + '] ' + target.trim()).join(', ') + ' {' + match.split('{')[1]);
-                document.head.appendChild(component.style);
+                if (!document.head.querySelector('style[component-type=' + component.type + ']')) {
+                    component.style = component.parsed.querySelector('style');
+                    component.style.setAttribute('component-type', component.type);
+                    component.style.innerText = component.style.innerText.replaceAll('\n', '').replaceAll(/(.*?)\{(.*?)}/gm, match => match.split('{')[0].split(',').map(target => {
+                        var classes = [...target.trim().matchAll(/^\.([a-zA-Z][\w-_]+)/g)];
+                        var ids = [...target.trim().matchAll(/^\#([a-zA-Z][\w-_]+)/g, '#$1[component]')];
+
+                        if (classes.length > 0 && component.parsed.querySelector('component').children[0].classList.contains(classes[0][1])) {
+                            return target.trim().replaceAll(/^\.([a-zA-Z][\w-_]+)/g, '.$1[component-type=' + component.type + ']');
+                        } else if (ids.length > 0 && component.parsed.querySelector('component').children[0].id == ids[0][1]) {
+                            return target.trim().replaceAll(/^\.([a-zA-Z][\w-_]+)/g, '#$1[component-type=' + component.type + ']');
+                        } else {
+                            return '[component-type=' + component.type + '] ' + target.trim()
+                        }
+                    }).join(', ') + ' {' + match.split('{')[1]);
+                    document.head.appendChild(component.style);
+                }
 
                 component.replacement = component.parsed.querySelector('component').children[0];
                 component.replacement.eventTransporter = component.eventTransporter;
-                node.parentNode.setAttribute('component-identifier', component.identifier);
+                component.replacement.setAttribute('component-identifier', component.identifier);
+                component.replacement.setAttribute('component-type', component.type);
                 node.parentNode.replaceChild(component.replacement, node);
                 node = component.replacement;
 
@@ -383,6 +398,8 @@ function processElementAttributes(el, eventTransporter, components) {
                         }
                     }
                 });
+
+                
             }
 
             const activeEventTransporter = (node.eventTransporter ? node.eventTransporter : eventTransporter);
@@ -688,6 +705,12 @@ function processElementAttributes(el, eventTransporter, components) {
                     }
                 }
             });
+
+            if (component) {
+                processTextNodes(node, activeEventTransporter);
+                node.doNotProcessTextNodes = true;
+                component.eventTransporter.dispatchEvent(new CustomEvent('triggerListeners', { detail: { listeners: 'data:updated', additionalInformation: false } } ))
+            }
         }
     });
 }

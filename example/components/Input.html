@@ -10,7 +10,7 @@
 
 <component>
     <div class="input-field" :class:red-border="error" testAttr>
-        <input :bind:type="type" :bind:name="name" :value="value" @input:event-input placeholder=" ">
+        <input :bind:type="type" :bind:name="name" :value="value" @input:event-input placeholder=" " @keydown:keydown>
         <span>
             {{ placeholder }}
         </span>

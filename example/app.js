@@ -111,20 +111,28 @@ const norender = new Rable({
 
 const components = new Rable({
     data: {
-        value: "",
+        message: "",
+        name: "",
+        age: "",
         error: false,
-        greet() {
-            if (this.value == '') {
-                console.log(this);
+        greet(e) {
+            if (e && e.key != "Enter") return;
+
+            if (this.name == '') {
+                this.message = "Enter your name.";
+            } else if (this.age < 1) {
+                this.message = "Enter a valid age.";
             } else {
-                alert(this.value);
+                if (this.age < 18) {
+                    this.message = "Take some apple juice, " + this.name + ".";
+                } else {
+                    this.message = "Wanna take a beer " + this.name + "?";
+                }
             }
         },
         typing() {
-            console.log(1, this);
-            console.log(this.value == '');
-            this.error = this.value == '';
-            console.log(2, this);
+            this.message = "";
+            this.error = this.name == '';
         }
     }
 });
