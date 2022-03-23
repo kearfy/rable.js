@@ -116,8 +116,7 @@ const components = new Rable({
         message: "",
         name: "",
         age: "",
-        error: false,
-        errors: [],
+
         greet(e) {
             if (e && e.key != "Enter") return;
 
@@ -133,18 +132,15 @@ const components = new Rable({
                 }
             }
         },
+
         typing(component) {
-            console.log(1);
             this.message = "";
-            component.error = component.value == '';
-            if (component.error) {
-                component.errors.push('This field cannot be empty!');
-            } else {
-                component.errors = [];
-            }
+            component.errors = [];
+            if (component.value == '') component.errors.push('This field cannot be empty!');
         }
     }
 });
+
 await components.importComponent('input-field', '/example/components/Input.html');
 components.mount('#components');
 
