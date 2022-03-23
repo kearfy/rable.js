@@ -4,16 +4,21 @@
         "name": null,
         "placeholder": "Field",
         "value": "",
-        "error": false
+        "errors": []
     }
 </data>
 
 <component>
-    <div class="input-field" :class:red-border="error" testAttr>
-        <input :bind:type="type" :bind:name="name" :value="value" @input:event-input placeholder=" " @keydown:keydown>
+    <div class="input-field" :class:error="errors.length > 0">
+        <input :bind:type :bind:name @input @keydown :value="value" placeholder=" ">
         <span>
             {{ placeholder }}
         </span>
+        <ul>
+            <li :for="error in errors">
+                {{ error }}
+            </li>
+        </ul>
     </div>
 </component>
 
@@ -72,14 +77,27 @@
         color: #0059c1;
     }
 
-    .input-field.red-border input {
+    .input-field.error input {
         border: 2px solid red !important;
         color: red !important;
         width: calc(100% - 44px);
         padding: 14px 25px;
     }
 
-    .input-field.red-border span {
+    .input-field.error span {
+        color: red !important;
+    }
+
+    .input-field ul {
+        width: calc(100% - 60px);
+        padding: 7px 20px 0px;
+    }
+
+    .input-field:not(.error) ul {
+        display: none;
+    }
+
+    .input-field.error ul li {
         color: red !important;
     }
 </style>
