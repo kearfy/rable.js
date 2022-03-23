@@ -633,7 +633,7 @@ function processElementAttributes(el, eventTransporter, components, rawData) {
                                 activeEventTransporter.dispatchEvent(new CustomEvent('registerListener', {
                                     detail: {
                                         type: 'data:updated',
-                                        listener: async () => {
+                                        listener: async item => {
                                             if (item == target) {
                                                 if (node.checked !== data[target]) node.checked = data[target];
                                             }
