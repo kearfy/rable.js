@@ -49,7 +49,7 @@
                     </section>
 
                     <section id="components">
-                        <input-field @keydown="greet(event)" &name="value" &errors &error $placeholder="Enter your name" @input="typing(componentData)"></input-field>
+                        <input-field @keydown="greet(event)" &name="value" $placeholder="Enter your name" @input="typing(componentData)"></input-field>
                         <input-field @keydown="greet(event)" &age="value" $type="number" $placeholder="Enter your age" @input="typing(componentData)" :if="name != ''"></input-field>
                         <button @click="greet()">
                             Go!
