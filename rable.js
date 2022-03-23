@@ -757,4 +757,3 @@ function processElementAttributes(el, eventTransporter, components, rawData) {
 }
 
 export { Rable };
-export default Rable;
