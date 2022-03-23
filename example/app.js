@@ -29,7 +29,9 @@ const note = new Rable({
             }
         },
         deleteNote(index) {
+            console.log(index);
             this.notes.splice(index, 1);
+            console.log(this);
         }
     }
 }).mount('#notes');
@@ -105,6 +107,44 @@ const attrBind = new Rable({
 
 const norender = new Rable({
     data: {
-        text: "I will be rendered."
+        text: "I will be rendered.",
     }
 }).mount('#norender');
+
+const components = new Rable({
+    data: {
+        message: "",
+        name: "",
+        age: "",
+        error: false,
+        errors: [],
+        greet(e) {
+            if (e && e.key != "Enter") return;
+
+            if (this.name == '') {
+                this.message = "Enter your name.";
+            } else if (this.age < 1) {
+                this.message = "Enter a valid age.";
+            } else {
+                if (this.age < 18) {
+                    this.message = "Take some apple juice, " + this.name + ".";
+                } else {
+                    this.message = "Wanna take a beer " + this.name + "?";
+                }
+            }
+        },
+        typing(component) {
+            console.log(1);
+            this.message = "";
+            component.error = component.value == '';
+            if (component.error) {
+                component.errors.push('This field cannot be empty!');
+            } else {
+                component.errors = [];
+            }
+        }
+    }
+});
+await components.importComponent('input-field', '/example/components/Input.html');
+components.mount('#components');
+
