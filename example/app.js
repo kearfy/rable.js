@@ -141,6 +141,23 @@ const components = new Rable({
     }
 });
 
-await components.importComponent('input-field', '/example/components/Input.html');
+await components.importComponent('input-field', '/example/components/InputField.html');
 components.mount('#components');
+
+const styling = new Rable({
+    data: {
+        size: "50%",
+        background: "black",
+        colors: {
+            red: "Red",
+            orange: "Orange",
+            yellow: "Yellow",
+            black: "Black"
+        }
+    }
+});
+
+await styling.importComponent('input-field', '/example/components/InputField.html');
+await styling.importComponent('input-select', '/example/components/InputSelect.html');
+styling.mount('#styling');
 

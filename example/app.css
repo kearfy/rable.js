@@ -102,10 +102,6 @@ section h3 {
     padding-bottom: 10px;
 }
 
-ol, ul {
-    margin-left: 20px;
-}
-
 button {
     background-color: black;
     color: white;
@@ -164,6 +160,7 @@ section#button-counter button {
 section#notes ul {
     padding: 0px 0px 20px;
     font-size: 17px;
+    margin-left: 20px;
 }
 
 section#notes ul li::marker {
@@ -249,4 +246,13 @@ section#norender {
 
 section#norender p {
     margin: 5px 0px;
+}
+
+section#styling .output {
+    height: 40px;
+    width: 100%;
+    max-width: 100%;
+    background-color: #000;
+    border-radius: 5px;
+    margin-top: 10px;
 }

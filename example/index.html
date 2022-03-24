@@ -58,6 +58,12 @@
                             {{ message }}
                         </span>
                     </section>
+
+                    <section id="styling">
+                        <input-field &size="value" $placeholder="Enter a CSS size"></input-field>
+                        <input-select &background="selected" &colors="options"></input-select>
+                        <div class="output" :style:width="size" :style:background_color="background"></div>
+                    </section>
                 </div>
                 <div class="row">
                     <section id="notes">
