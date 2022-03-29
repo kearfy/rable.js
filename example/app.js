@@ -161,3 +161,33 @@ await styling.importComponent('input-field', '/example/components/InputField.htm
 await styling.importComponent('input-select', '/example/components/InputSelect.html');
 styling.mount('#styling');
 
+const deepbind = new Rable({
+    data: {
+        toggles: [
+            {
+                prefix: "I am",
+                toggle: true
+            },
+            {
+                prefix: "You are",
+                toggle: false
+            },
+            {
+                prefix: "He is",
+                toggle: true
+            },
+            {
+                prefix: "She is",
+                toggle: false
+            },
+            {
+                prefix: "They are",
+                toggle: true
+            }
+        ]
+    }
+});
+
+await deepbind.importComponent('input-toggle', '/example/components/InputToggle.html');
+deepbind.mount('#deep-bind');
+

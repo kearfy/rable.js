@@ -256,3 +256,28 @@ section#styling .output {
     border-radius: 5px;
     margin-top: 10px;
 }
+
+section#deep-bind table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+section#deep-bind th {
+    border-bottom: 2px solid black;
+}
+
+section#deep-bind th,
+section#deep-bind td {
+    text-align: left;
+    padding: 8px 12px;
+    width: 50%;
+}
+
+section#deep-bind th:first-child,
+section#deep-bind td:first-child {
+    text-align: right;
+} 
+
+section#deep-bind .input-toggle {
+    margin-top: 0px;
+}

@@ -121,6 +121,26 @@
                             </button>
                         </div>
                     </section>
+                    <section id="deep-bind">
+                        <table>
+                            <tr>
+                                <th>
+                                    Status
+                                </th>
+                                <th>
+                                    Toggle
+                                </th>
+                            </tr>
+                            <tr :for="toggle in toggles">
+                                <td>
+                                    {{ toggle.prefix }} <b>{{ toggle.toggle ? "on" : "off" }}</b>.
+                                </td>
+                                <td>
+                                    <input-toggle &toggle.toggle="checked"></input-toggle>
+                                </td>
+                            </tr>
+                        </table>
+                    </section>
                 </div>
             </div>
         </div>
