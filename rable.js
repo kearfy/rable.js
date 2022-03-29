@@ -143,7 +143,6 @@ function processTextNodes(el, eventTransporter) {
                             listener: async () => {
                                 const data = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveData', { detail: { resolve } })));
                                 const scopeData = await new Promise(resolve => activeEventTransporter.dispatchEvent(new CustomEvent('retrieveScopeData', { detail: { resolve } })));                                
-                                console.log(data);
                                 node.data = node.originalData.replaceAll(/{{(.*?)}}/g, (match, target) => {
                                     let keys = Object.keys(data);
                                     keys.push('return ' + target);
@@ -519,7 +518,6 @@ function processElementAttributes(el, eventTransporter, components, rawData) {
 
                                                     const validator = root => ({
                                                         get: (obj, prop) => {
-                                                            console.log(prop);
                                                             if (prop == value) {
                                                                 return data[target][item];
                                                             } else if (key && prop == key) {
